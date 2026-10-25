@@ -1,0 +1,29 @@
+services:
+  store:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - store_data:/app/data
+    expose:
+      - "3000"
+    security_opt:
+      - no-new-privileges:true
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      STORE_DOMAIN: ${STORE_DOMAIN:?Set STORE_DOMAIN to your shop domain}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - store
+volumes:
+  store_data:
+  caddy_data:
+  caddy_config:
