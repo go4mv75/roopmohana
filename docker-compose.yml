@@ -1,0 +1,51 @@
+# Self-hosted stack: the store + Postgres.
+#   cp .env.example .env   # fill in AUTH_SECRET, payment keys, etc.
+#   docker compose up -d --build
+#   docker compose run --rm seed
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: roop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: roopmohana
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roop -d roopmohana"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://roop:${POSTGRES_PASSWORD:-change-me}@db:5432/roopmohana
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/app/.data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # One-off: loads categories, the catalogue, ROOP05 and the owner account.
+  seed:
+    image: node:22-alpine
+    working_dir: /app
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://roop:${POSTGRES_PASSWORD:-change-me}@db:5432/roopmohana
+    volumes:
+      - ./:/app
+    command: sh -c "npm ci && npx tsx scripts/seed.ts"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:

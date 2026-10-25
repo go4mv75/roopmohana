@@ -1,26 +1,165 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ivory: #f6f1e9;
+  --color-paper: #fbf8f3;
+  --color-sand: #ece4d7;
+  --color-line: #e2d8c9;
+  --color-ink: #1d1a1f;
+  --color-ink-soft: #3a343d;
+  --color-muted: #6e6672;
+  --color-sindoor: #7a1f2b;
+  --color-sindoor-deep: #4f121b;
+  --color-sindoor-soft: #f3e3e0;
+  --color-gold: #a8844f;
+  --color-silver: #a9abae;
+  --color-success: #2f6b4f;
+  --color-warning: #9a6a12;
+
+  --font-display: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-deva: var(--font-tiro), "Tiro Devanagari Hindi", serif;
+
+  --radius-arch: 999px 999px 0 0;
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--color-sindoor);
+    color: var(--color-paper);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-sindoor);
+    outline-offset: 2px;
+  }
+  input,
+  select,
+  textarea {
+    font: inherit;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .eyebrow {
+    @apply text-[11px] font-semibold tracking-[0.22em] uppercase text-muted;
+  }
+  .display {
+    font-family: var(--font-display);
+    font-variant-numeric: lining-nums;
+    @apply font-medium tracking-[-0.01em] leading-[1.02];
+  }
+  .btn-primary {
+    @apply btn bg-ink text-paper hover:bg-sindoor;
+  }
+  .btn-accent {
+    @apply btn bg-sindoor text-paper hover:bg-sindoor-deep;
+  }
+  .btn-outline {
+    @apply btn border border-ink/80 text-ink hover:bg-ink hover:text-paper;
+  }
+  .btn-ghost {
+    @apply btn h-10 px-4 text-ink hover:text-sindoor;
+  }
+  .field {
+    @apply w-full h-12 px-4 bg-paper border border-line text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-ink focus:outline-none;
+  }
+  textarea.field {
+    @apply h-auto py-3;
+  }
+  .label {
+    @apply block text-[12px] font-semibold tracking-[0.08em] uppercase text-ink-soft mb-2;
+  }
+  .link-underline {
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+    transition: background-size 0.4s var(--ease-soft);
+  }
+  .link-underline:hover {
+    background-size: 100% 1px;
+  }
+  .arch {
+    border-radius: var(--radius-arch);
+  }
+  .container-x {
+    @apply mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-10;
+  }
+  .card {
+    @apply bg-paper border border-line;
+  }
+  .prose-rm p {
+    @apply mb-4 leading-relaxed text-ink-soft;
+  }
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 h-12 px-7 text-[13px] font-semibold tracking-[0.12em] uppercase transition-[background,color,border-color,transform] duration-300 select-none disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.9s var(--ease-soft) both;
+}
+.rise-1 {
+  animation-delay: 0.08s;
+}
+.rise-2 {
+  animation-delay: 0.18s;
+}
+.rise-3 {
+  animation-delay: 0.3s;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.silver-text {
+  background: linear-gradient(100deg, #8d8f93 20%, #e9eaec 40%, #9b9da1 60%, #6d6f73 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .silver-text {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }
