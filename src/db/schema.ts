@@ -136,6 +136,11 @@ export const orders = pgTable(
     subtotal: integer("subtotal").notNull(),
     discount: integer("discount").notNull().default(0),
     shippingFee: integer("shipping_fee").notNull().default(0),
+    /**
+     * Direct UPI only: paise knocked off so every waiting order has a unique
+     * amount, letting a bank SMS be matched to its order. Already in `total`.
+     */
+    upiOffset: integer("upi_offset").notNull().default(0),
     total: integer("total").notNull(),
     couponCode: text("coupon_code"),
     status: text("status", { enum: ORDER_STATUSES }).notNull().default("pending_payment"),
@@ -160,6 +165,25 @@ export const orders = pgTable(
     index("orders_status_idx").on(t.status),
     index("orders_gateway_idx").on(t.gatewayOrderId),
   ],
+);
+
+/** Incoming money seen in bank SMS alerts (forwarded from the owner's phone). */
+export const bankCredits = pgTable(
+  "bank_credits",
+  {
+    id: serial("id").primaryKey(),
+    /** UPI reference (UTR / RRN). Unique, so a forwarded SMS is never applied twice. */
+    utr: text("utr").notNull(),
+    amount: integer("amount").notNull(),
+    payer: text("payer"),
+    sender: text("sender").notNull(),
+    rawText: text("raw_text").notNull(),
+    orderId: text("order_id").references(() => orders.id, { onDelete: "set null" }),
+    /** matched: applied to an order · unmatched: no waiting order had this amount · ambiguous: several did */
+    status: text("status", { enum: ["matched", "unmatched", "ambiguous"] }).notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("bank_credits_utr_idx").on(t.utr)],
 );
 
 export const orderItems = pgTable("order_items", {
@@ -210,3 +234,4 @@ export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type Coupon = typeof coupons.$inferSelect;
 export type Address = typeof addresses.$inferSelect;
+export type BankCredit = typeof bankCredits.$inferSelect;

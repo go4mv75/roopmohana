@@ -8,9 +8,10 @@ import { openRazorpay } from "./razorpay-checkout";
 
 /**
  * Polls the server (which asks the gateway) until the payment settles,
- * then refreshes the page. Backs off gently and stops after ~15 minutes.
+ * then refreshes the page. Backs off gently and stops after `maxMinutes`
+ * (longer for direct UPI, where the owner confirms by hand).
  */
-export function PaymentWatcher({ orderId }: { orderId: string }) {
+export function PaymentWatcher({ orderId, maxMinutes = 15 }: { orderId: string; maxMinutes?: number }) {
   const router = useRouter();
   useEffect(() => {
     let stopped = false;
@@ -29,7 +30,7 @@ export function PaymentWatcher({ orderId }: { orderId: string }) {
           }
         }
       } catch {}
-      if (Date.now() - started > 15 * 60_000) return;
+      if (Date.now() - started > maxMinutes * 60_000) return;
       delay = Math.min(delay * 1.15, 8000);
       timer = setTimeout(tick, document.hidden ? 10_000 : delay);
     };
@@ -38,7 +39,7 @@ export function PaymentWatcher({ orderId }: { orderId: string }) {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [orderId, router]);
+  }, [orderId, router, maxMinutes]);
   return null;
 }
 
@@ -59,7 +60,10 @@ export function RetryPayment({ orderId, label = "Try payment again", subtle = fa
             if (res.start.kind === "redirect") {
               if (res.start.url.startsWith("/")) router.push(res.start.url);
               else window.location.href = res.start.url;
+              return;
             }
+            // Direct UPI: payment is pending again, so the page shows the QR once more.
+            router.refresh();
           })
         }
       >
@@ -77,10 +81,17 @@ export function UtrForm({ orderId }: { orderId: string }) {
     <form action={action} className="space-y-2">
       <label className="label" htmlFor="utr">UTR / UPI reference number</label>
       <div className="flex gap-2">
-        <input id="utr" name="utr" inputMode="numeric" maxLength={14} placeholder="e.g. 412345678901" className="field font-mono" required />
+        <input id="utr" name="utr" maxLength={40} placeholder="e.g. 412345678901" className="field font-mono" autoComplete="off" required />
         <button disabled={pending} className="btn-primary px-5 shrink-0">{pending ? "…" : "Submit"}</button>
       </div>
-      {state?.error && <p className="text-xs text-sindoor">{state.error}</p>}
+      <p className="text-xs text-muted">
+        Find it in your payment receipt: “UTR” (PhonePe), “UPI transaction ID” (Google Pay), “UPI Ref. No.” (Paytm).
+      </p>
+      {state?.error && (
+        <p role="alert" className="text-sm text-sindoor bg-sindoor-soft px-4 py-3">
+          {state.error}
+        </p>
+      )}
     </form>
   );
 }

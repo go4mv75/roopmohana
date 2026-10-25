@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ShoppingBag, Gem, FolderTree, TicketPercent, Users, MessageSquare, Store } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Gem, FolderTree, TicketPercent, Users, MessageSquare, Store, Landmark } from "lucide-react";
 
 const items = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/admin/bank-sms", label: "Bank SMS", icon: Landmark },
   { href: "/admin/products", label: "Products", icon: Gem },
   { href: "/admin/categories", label: "Categories", icon: FolderTree },
   { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },

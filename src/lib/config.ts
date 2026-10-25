@@ -45,4 +45,6 @@ export const payments = {
 export const upi = {
   vpa: process.env.UPI_VPA ?? "",
   payeeName: process.env.UPI_PAYEE_NAME ?? store.name,
+  /** Bank SMS forwarding is set up, so direct-UPI payments confirm themselves. */
+  autoVerify: (process.env.SMS_WEBHOOK_SECRET ?? "").length >= 16,
 };

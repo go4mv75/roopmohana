@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { getDb, schema } from "@/db";
 import type { Order, OrderAddress, OrderStatus, PaymentMethod } from "@/db/schema";
@@ -47,6 +47,7 @@ export async function createOrder(input: {
   const isCod = input.method === "cod";
 
   const order = await db.transaction(async (tx) => {
+    const upiOffset = input.method === "upi_direct" ? await pickUpiOffset(tx, quote.total) : 0;
     const [o] = await tx
       .insert(schema.orders)
       .values({
@@ -59,7 +60,8 @@ export async function createOrder(input: {
         subtotal: quote.subtotal,
         discount: quote.discount,
         shippingFee: quote.shippingFee,
-        total: quote.total,
+        upiOffset,
+        total: quote.total - upiOffset,
         couponCode: quote.couponCode,
         paymentMethod: input.method,
         status: isCod ? "confirmed" : "pending_payment",
@@ -82,7 +84,7 @@ export async function createOrder(input: {
     await tx.insert(schema.orderEvents).values({
       orderId: id,
       type: "created",
-      message: `Order placed · ${money(quote.total)} via ${input.method}`,
+      message: `Order placed · ${money(o.total)} via ${input.method}`,
     });
     if (isCod) await commitInventory(tx, o);
     return o;
@@ -93,6 +95,33 @@ export async function createOrder(input: {
 }
 
 type Tx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
+
+/** Direct-UPI orders still waiting for money: the ones a bank SMS could belong to. */
+export const UPI_MATCH_WINDOW_MS = 48 * 3600_000;
+
+/**
+ * Picks how many paise (0–99) to take off a direct-UPI order so no other
+ * waiting UPI order has the same amount. 0 when the amount is already unique.
+ */
+async function pickUpiOffset(tx: Tx, total: number): Promise<number> {
+  const taken = await tx
+    .select({ total: schema.orders.total })
+    .from(schema.orders)
+    .where(
+      and(
+        eq(schema.orders.paymentMethod, "upi_direct"),
+        inArray(schema.orders.paymentStatus, ["pending", "failed"]),
+        gte(schema.orders.createdAt, new Date(Date.now() - UPI_MATCH_WINDOW_MS)),
+        lte(schema.orders.total, total),
+        gte(schema.orders.total, total - 99),
+      ),
+    );
+  const used = new Set(taken.map((t) => t.total));
+  for (let offset = 0; offset <= Math.min(99, total - 1); offset++) {
+    if (!used.has(total - offset)) return offset;
+  }
+  throw new OrderError("Too many UPI payments are waiting for this amount. Please choose another payment method.");
+}
 
 /** Decrements stock and counts coupon usage once an order is real (paid or COD). */
 async function commitInventory(tx: Tx, order: Order) {

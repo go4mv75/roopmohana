@@ -38,6 +38,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   return (
     <section className="container-x py-12 sm:py-16 max-w-5xl">
       {waiting && !isUpiDirect && <PaymentWatcher orderId={order.id} />}
+      {/* Direct UPI: confirmed by the bank-SMS matcher (or the owner) — update live when it is. */}
+      {waiting && isUpiDirect && <PaymentWatcher orderId={order.id} maxMinutes={180} />}
 
       <div className="text-center mb-12">
         {paid || order.paymentMethod === "cod" ? (
@@ -86,21 +88,42 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           </div>
           <div className="space-y-5">
             <p className="display text-4xl">{money(order.total)}</p>
+            {order.upiOffset > 0 && (
+              <p className="text-xs text-muted -mt-3">
+                Includes {money(order.upiOffset)} off so we can recognise your payment — please pay this exact amount.
+              </p>
+            )}
             <p className="text-sm text-ink-soft">
               Pay to <b>{upi.payeeName}</b> · <span className="font-mono">{upi.vpa}</span>
             </p>
             <a href={upiLink(order)} className="btn-accent w-full sm:w-auto md:hidden">Pay with UPI app</a>
-            <ol className="text-sm text-muted space-y-1 list-decimal list-inside">
-              <li>Scan the QR (or tap the button on your phone) and pay the exact amount.</li>
-              <li>Enter the 12-digit UTR / UPI reference from your app below.</li>
-              <li>We verify and confirm your order — usually within a few hours.</li>
-            </ol>
-            {order.gatewayPaymentId ? (
-              <p className="text-sm bg-ivory px-4 py-3">
-                Reference <b className="font-mono">{order.gatewayPaymentId}</b> received — we’re verifying it. You’ll get an email once confirmed.
-              </p>
+            {upi.autoVerify ? (
+              <>
+                <ol className="text-sm text-muted space-y-1 list-decimal list-inside">
+                  <li>Scan the QR (or tap the button on your phone) and pay the exact amount.</li>
+                  <li>Keep this page open — it confirms by itself, usually within a minute.</li>
+                </ol>
+                <p className="flex items-center gap-2 text-sm">
+                  <Clock size={16} className="text-warning animate-pulse" /> Waiting for your payment…
+                </p>
+                {order.gatewayPaymentId ? (
+                  <UtrReceived utr={order.gatewayPaymentId} />
+                ) : (
+                  <details className="text-sm">
+                    <summary className="cursor-pointer text-ink-soft underline">Paid, but still waiting after a few minutes?</summary>
+                    <div className="mt-3"><UtrForm orderId={order.id} /></div>
+                  </details>
+                )}
+              </>
             ) : (
-              <UtrForm orderId={order.id} />
+              <>
+                <ol className="text-sm text-muted space-y-1 list-decimal list-inside">
+                  <li>Scan the QR (or tap the button on your phone) and pay the exact amount.</li>
+                  <li>Enter the 12-digit UTR / UPI reference from your app below.</li>
+                  <li>We verify and confirm your order — usually within a few hours.</li>
+                </ol>
+                {order.gatewayPaymentId ? <UtrReceived utr={order.gatewayPaymentId} /> : <UtrForm orderId={order.id} />}
+              </>
             )}
           </div>
         </div>
@@ -152,6 +175,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             <div className="flex justify-between"><dt className="text-ink-soft">Subtotal</dt><dd>{money(order.subtotal)}</dd></div>
             {order.discount > 0 && <div className="flex justify-between text-success"><dt>Discount ({order.couponCode})</dt><dd>− {money(order.discount)}</dd></div>}
             <div className="flex justify-between"><dt className="text-ink-soft">Shipping</dt><dd>{order.shippingFee ? money(order.shippingFee) : "Free"}</dd></div>
+            {order.upiOffset > 0 && <div className="flex justify-between"><dt className="text-ink-soft">UPI payment adjustment</dt><dd>− {money(order.upiOffset)}</dd></div>}
             <div className="flex justify-between text-lg font-semibold pt-2"><dt>Total</dt><dd>{money(order.total)}</dd></div>
           </dl>
         </div>
@@ -179,5 +203,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </div>
       </div>
     </section>
+  );
+}
+
+function UtrReceived({ utr }: { utr: string }) {
+  return (
+    <p className="text-sm bg-ivory px-4 py-3">
+      Reference <b className="font-mono">{utr}</b> received — we’re verifying it. This page updates as soon as it’s confirmed.
+    </p>
   );
 }

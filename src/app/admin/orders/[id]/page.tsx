@@ -54,6 +54,7 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
               <Row k="Subtotal" v={money(o.subtotal)} />
               {o.discount > 0 && <Row k={`Discount (${o.couponCode})`} v={`− ${money(o.discount)}`} />}
               <Row k="Shipping" v={o.shippingFee ? money(o.shippingFee) : "Free"} />
+              {o.upiOffset > 0 && <Row k="UPI matching adjustment" v={`− ${money(o.upiOffset)}`} />}
               <Row k="Total" v={money(o.total)} bold />
             </dl>
           </Panel>

@@ -14,7 +14,7 @@ Built with Next.js 16 (App Router), Postgres (Drizzle ORM) and Tailwind CSS 4.
 | **Storefront** | Home, shop with filters/sort/search, collections, product pages (gallery + zoom), bag drawer, wishlist, customise & contact forms, policies, SEO (sitemap, robots, product JSON-LD) |
 | **Accounts** | Email + password sign-up/sign-in, optional Google sign-in, password reset by email, saved addresses, order history |
 | **Checkout** | Server re-prices every order (client prices are never trusted), coupons (ROOP05 seeded), free shipping above ₹1,000, PIN-code auto-fill |
-| **Payments** | **Razorpay** (cards, UPI, netbanking, wallets) · **PhonePe PG** (push a UPI request to the customer's app, Swiggy/Zomato style) · **Direct UPI** QR / tap-to-pay with UTR, zero fees · **Cash on delivery** |
+| **Payments** | **Razorpay** (cards, UPI, netbanking, wallets) · **PhonePe PG** (push a UPI request to the customer's app, Swiggy/Zomato style) · **Direct UPI** QR / tap-to-pay, zero fees, auto-confirmed from bank SMS · **Cash on delivery** |
 | **Order status page** | Polls the gateway until payment settles and updates itself; retry on failure |
 | **Owner dashboard** `/admin` | Revenue KPIs + 30-day chart, orders (filter, verify UPI, ship with tracking, cancel/restock, private notes, print), products (create/edit, image upload, stock, featured/visible), categories, coupons, customers, enquiries |
 | **Emails** | Order confirmation, status updates (shipped etc.), password reset, owner alerts — via Resend |
@@ -82,6 +82,31 @@ page so you can run the whole checkout without keys. Sign in with the owner acco
 Set `UPI_VPA` to a **business/merchant** UPI ID (personal VPAs often hit app limits). Customers scan
 a QR or tap "Pay with UPI app" and enter the 12-digit UTR; you confirm it from **Admin → Orders → UPI to verify**
 after checking your bank app. Best as a fallback — it can't be confirmed automatically.
+
+### Automatic UPI confirmation (bank SMS, no gateway)
+Direct-UPI orders can confirm themselves within seconds by reading your bank's "money received" SMS:
+
+1. Each waiting UPI order gets a unique amount (a few paise off when two orders would cost the same).
+2. An Android phone that receives your bank's SMS forwards them to the store.
+3. The store reads the amount + UPI reference, finds the waiting order with exactly that amount and marks it paid.
+   The customer's page updates by itself; every SMS is listed in **Admin → Bank SMS**.
+
+Setup:
+1. Generate a secret (`openssl rand -hex 24`) → set `SMS_WEBHOOK_SECRET`. Set `SMS_ALLOWED_SENDERS` to your bank's
+   sender ID (HDFC = `HDFCBK`).
+2. On the phone, install **Incoming SMS to URL forwarder** from F-Droid
+   (package `tech.bogomolov.incomingsmsgateway`; it is not on the Play Store). Add a rule:
+   - Sender: `HDFCBK`, with regex/substring matching on
+   - URL: `https://<your-site>/api/webhooks/bank-sms`
+   - Leave the default JSON template (`from`, `text`, …)
+   - Turn on **Sign with HMAC-SHA-256** and paste the same secret
+     (forwarders that can't sign may use `…/bank-sms?key=<secret>` instead)
+3. Exempt the app from battery optimisation so it keeps running, and keep the phone online.
+4. Test: pay a small order, then check **Admin → Bank SMS** — the credit should show as *matched*.
+
+Notes: SMS that aren't credits (debits, OTPs, collect requests) and SMS from other senders are ignored; each UPI
+reference is applied only once. If a credit can't be matched (wrong amount, or two orders tie), it's listed as
+*unmatched* and you confirm that order by hand. The customer can also type their UTR as a backup.
 
 ### Google sign-in (optional)
 Create an OAuth "Web application" client at console.cloud.google.com with redirect URI

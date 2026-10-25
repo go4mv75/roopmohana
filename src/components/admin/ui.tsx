@@ -42,6 +42,9 @@ const STATUS_STYLE: Record<string, string> = {
   new: "bg-sindoor-soft text-sindoor",
   in_progress: "bg-[#f5ecd9] text-warning",
   closed: "bg-sand text-muted",
+  matched: "bg-[#e3efe7] text-success",
+  unmatched: "bg-[#f5ecd9] text-warning",
+  ambiguous: "bg-sindoor-soft text-sindoor",
 };
 
 export function StatusBadge({ value }: { value: string }) {

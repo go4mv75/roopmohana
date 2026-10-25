@@ -86,13 +86,15 @@ export async function syncPayment(order: Order, gatewayOrderId = order.gatewayOr
 
 /** upi://pay deep link (NPCI UPI linking spec). Opens GPay / PhonePe / Paytm / BHIM on phones. */
 export function upiLink(order: Order) {
+  // No `tr` (merchant reference): apps may reject it when the payee is a personal VPA.
+  // The order number travels in the note (`tn`) instead.
   const params = new URLSearchParams({
     pa: upi.vpa,
     pn: upi.payeeName,
     am: (order.total / 100).toFixed(2),
     cu: "INR",
     tn: `Order ${order.number}`,
-    tr: order.number,
   });
-  return `upi://pay?${params.toString().replace(/\+/g, "%20")}`;
+  // Some UPI apps reject a percent-encoded "@" in the payee address.
+  return `upi://pay?${params.toString().replace(/\+/g, "%20").replace(/%40/g, "@")}`;
 }
